@@ -1,0 +1,25 @@
+# Neovim plugin manager lock file
+lazy-lock.json
+
+# Plugin directories (lazy.nvim installs to stdpath("data"))
+# lazy/
+# plugin/packer_compiled.lua
+
+# Neovim swap files
+*.swp
+*.swo
+*~
+
+# Neovim backup files
+*.bak
+*.backup
+
+# Neovim undo files
+*.un~
+
+# Neovim shada/viminfo
+*.shada
+.netrwhist
+
+# LSP and other caches
+.luarc.json
