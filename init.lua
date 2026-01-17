@@ -194,6 +194,30 @@ require("lazy").setup({
       })
     end,
   },
+  
+  -- DAP (Debug Adapter Protocol)
+  {
+    "mfussenegger/nvim-dap",
+    dependencies = {
+      "rcarriga/nvim-dap-ui",
+      "nvim-neotest/nvim-nio",
+      "theHamsta/nvim-dap-virtual-text",
+    },
+  },
+  {
+    "rcarriga/nvim-dap-ui",
+    dependencies = { "mfussenegger/nvim-dap", "nvim-neotest/nvim-nio" },
+  },
+  {
+    "theHamsta/nvim-dap-virtual-text",
+    dependencies = { "mfussenegger/nvim-dap" },
+  },
+  
+  -- Ruby/Rails debugger support
+  {
+    "suketa/nvim-dap-ruby",
+    dependencies = { "mfussenegger/nvim-dap" },
+  },
 })
 
 -- nvim-cmp補完設定
@@ -385,3 +409,55 @@ vim.keymap.set("n", "<leader>gd", ":DiffviewOpen<CR>", { desc = "Diff view" })
 vim.keymap.set("n", "<leader>gh", ":DiffviewFileHistory %<CR>", { desc = "File history" })
 vim.keymap.set("n", "<leader>go", ":Git checkout ", { desc = "Git checkout" })
 vim.keymap.set("n", "<leader>gB", ":Telescope git_branches<CR>", { desc = "Git branches" })
+
+-- DAP設定
+local dap = require("dap")
+local dapui = require("dapui")
+
+-- DAP UIセットアップ
+dapui.setup()
+require("nvim-dap-virtual-text").setup()
+
+-- Ruby debugger設定（rdbg）
+dap.adapters.ruby = function(callback, config)
+  callback({
+    type = "server",
+    host = config.host or "127.0.0.1",
+    port = config.port or 38698,
+  })
+end
+
+dap.configurations.ruby = {
+  {
+    type = "ruby",
+    name = "Attach to Foreman Rails (rdbg)",
+    request = "attach",
+    host = "127.0.0.1",
+    port = 38698,
+  },
+}
+
+-- DAP UIを自動で開閉
+dap.listeners.before.attach.dapui_config = function()
+  dapui.open()
+end
+dap.listeners.before.launch.dapui_config = function()
+  dapui.open()
+end
+dap.listeners.before.event_terminated.dapui_config = function()
+  dapui.close()
+end
+dap.listeners.before.event_exited.dapui_config = function()
+  dapui.close()
+end
+
+-- デバッグ用キーマップ
+vim.keymap.set("n", "<leader>db", dap.toggle_breakpoint, { desc = "Toggle breakpoint" })
+vim.keymap.set("n", "<leader>dc", dap.continue, { desc = "Continue" })
+vim.keymap.set("n", "<leader>do", dap.step_over, { desc = "Step over" })
+vim.keymap.set("n", "<leader>di", dap.step_into, { desc = "Step into" })
+vim.keymap.set("n", "<leader>du", dap.step_out, { desc = "Step out" })
+vim.keymap.set("n", "<leader>dr", dap.repl.open, { desc = "Open REPL" })
+vim.keymap.set("n", "<leader>dl", dap.run_last, { desc = "Run last" })
+vim.keymap.set("n", "<leader>dt", dapui.toggle, { desc = "Toggle DAP UI" })
+vim.keymap.set("n", "<leader>dx", dap.terminate, { desc = "Terminate" })
