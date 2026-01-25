@@ -9,6 +9,23 @@ vim.opt.termguicolors = true
 vim.opt.signcolumn = "yes"
 vim.opt.updatetime = 300
 
+-- 外部変更の自動反映
+vim.opt.autoread = true
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI" }, {
+  pattern = "*",
+  callback = function()
+    if vim.fn.mode() ~= "c" then
+      vim.cmd("checktime")
+    end
+  end,
+})
+vim.api.nvim_create_autocmd("FileChangedShellPost", {
+  pattern = "*",
+  callback = function()
+    vim.notify("File changed on disk. Buffer reloaded.", vim.log.levels.WARN)
+  end,
+})
+
 -- リーダーキー
 vim.g.mapleader = " "
 
@@ -24,8 +41,12 @@ if not vim.uv.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+-- 言語別設定を読み込み
+local ruby = require("langs.ruby")
+local php = require("langs.php")
+
 -- プラグイン設定
-require("lazy").setup({
+local plugins = {
   -- LSP関連
   {
     "neovim/nvim-lspconfig",
@@ -129,30 +150,6 @@ require("lazy").setup({
     end,
   },
   
-  -- Rails開発用プラグイン
-  {
-    "vim-ruby/vim-ruby",
-    ft = { "ruby", "eruby" },
-  },
-  {
-    "tpope/vim-rails",
-    ft = { "ruby", "eruby" },
-  },
-  {
-    "tpope/vim-bundler",
-    ft = { "ruby", "eruby" },
-  },
-  {
-    "tpope/vim-endwise",
-    ft = { "ruby", "eruby" },
-  },
-  
-  -- HAML/SASS対応
-  {
-    "tpope/vim-haml",
-    ft = { "haml", "sass", "scss" },
-  },
-  
   -- コメントアウト
   {
     "tpope/vim-commentary",
@@ -212,13 +209,19 @@ require("lazy").setup({
     "theHamsta/nvim-dap-virtual-text",
     dependencies = { "mfussenegger/nvim-dap" },
   },
-  
-  -- Ruby/Rails debugger support
-  {
-    "suketa/nvim-dap-ruby",
-    dependencies = { "mfussenegger/nvim-dap" },
-  },
-})
+}
+
+-- 言語別プラグインを追加
+for _, plugin in ipairs(ruby.plugins) do
+  table.insert(plugins, plugin)
+end
+
+for _, plugin in ipairs(php.plugins) do
+  table.insert(plugins, plugin)
+end
+
+-- lazy.nvimにプラグインを登録
+require("lazy").setup(plugins)
 
 -- nvim-cmp補完設定
 local cmp = require("cmp")
@@ -354,49 +357,16 @@ vim.lsp.config.solargraph = {
 
 vim.lsp.enable("solargraph")
 
--- ファイルタイプ別のインデント設定
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = "ruby",
-  callback = function()
-    vim.opt_local.shiftwidth = 2
-    vim.opt_local.tabstop = 2
-    vim.opt_local.expandtab = true
-  end,
-})
+-- 言語別LSP設定を適用
+ruby.setup_lsp(capabilities, on_attach)
+php.setup_lsp(capabilities, on_attach)
 
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = "haml",
-  callback = function()
-    vim.opt_local.shiftwidth = 2
-    vim.opt_local.tabstop = 2
-    vim.opt_local.expandtab = true
-  end,
-})
-
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = { "sass", "scss" },
-  callback = function()
-    vim.opt_local.shiftwidth = 2
-    vim.opt_local.tabstop = 2
-    vim.opt_local.expandtab = true
-  end,
-})
-
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = "eruby",
-  callback = function()
-    vim.opt_local.shiftwidth = 2
-    vim.opt_local.tabstop = 2
-    vim.opt_local.expandtab = true
-  end,
-})
+-- 言語別インデント設定を適用
+ruby.setup_indent()
+php.setup_indent()
 
 -- Railsプロジェクト用キーマップ
-vim.keymap.set("n", "<leader>ra", ":A<CR>", { desc = "Rails alternate file" })
-vim.keymap.set("n", "<leader>rr", ":R<CR>", { desc = "Rails related file" })
-vim.keymap.set("n", "<leader>rm", ":Emodel ", { desc = "Rails model" })
-vim.keymap.set("n", "<leader>rc", ":Econtroller ", { desc = "Rails controller" })
-vim.keymap.set("n", "<leader>rv", ":Eview ", { desc = "Rails view" })
+ruby.setup_keymaps()
 
 -- Git操作用キーマップ
 vim.keymap.set("n", "<leader>gs", ":Git<CR>", { desc = "Git status" })
@@ -418,24 +388,8 @@ local dapui = require("dapui")
 dapui.setup()
 require("nvim-dap-virtual-text").setup()
 
--- Ruby debugger設定（rdbg）
-dap.adapters.ruby = function(callback, config)
-  callback({
-    type = "server",
-    host = config.host or "127.0.0.1",
-    port = config.port or 38698,
-  })
-end
-
-dap.configurations.ruby = {
-  {
-    type = "ruby",
-    name = "Attach to Foreman Rails (rdbg)",
-    request = "attach",
-    host = "127.0.0.1",
-    port = 38698,
-  },
-}
+-- 言語別DAP設定を適用
+ruby.setup_dap()
 
 -- DAP UIを自動で開閉
 dap.listeners.before.attach.dapui_config = function()
